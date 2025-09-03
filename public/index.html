@@ -147,53 +147,30 @@
     let currentUser = "";
     let allMessages = [];
 
-    // Load messages from localStorage (simulate txt file)
-    window.onload = function() {
-      const saved = localStorage.getItem("chatLog");
-      if (saved) {
-        allMessages = saved.split("\n");
-      }
-    }
+   async function fetchMessages() {
+  const res = await fetch("/api/messages");
+  const data = await res.json();
+  allMessages = data;
+  renderMessages();
+}
 
-    function renderMessages() {
-      const messagesDiv = document.getElementById("messages");
-      messagesDiv.innerHTML = "";
-      allMessages.forEach(line => {
-        if (line.trim()) {
-          const msgDiv = document.createElement("div");
-          msgDiv.className = "msg";
-          if (line.startsWith(currentUser + ":")) {
-            msgDiv.classList.add("self");
-          }
-          msgDiv.textContent = line;
-          messagesDiv.appendChild(msgDiv);
-        }
-      });
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
+async function sendMessage() {
+  const msgInput = document.getElementById("message");
+  const msg = msgInput.value.trim();
+  if (!msg) return;
 
-    function enterChat() {
-      const user = document.getElementById("username").value.trim();
-      if (!user) {
-        alert("Please enter a username");
-        return;
-      }
-      currentUser = user;
-      document.getElementById("username-screen").style.display = "none";
-      document.getElementById("chat").style.display = "flex";
-      renderMessages();
-    }
+  const entry = currentUser + ": " + msg;
 
-    function sendMessage() {
-      const msgInput = document.getElementById("message");
-      const msg = msgInput.value.trim();
-      if (!msg) return;
-      const entry = currentUser + ": " + msg;
-      allMessages.push(entry);
-      localStorage.setItem("chatLog", allMessages.join("\n"));
-      renderMessages();
-      msgInput.value = "";
-    }
+  await fetch("/api/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: entry })
+  });
+
+  msgInput.value = "";
+  fetchMessages(); // reload chat
+  }
+  setInterval(fetchMessages, 3000);
   </script>
 </body>
 </html>
