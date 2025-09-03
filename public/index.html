@@ -21,7 +21,6 @@
       background: #2b2b3c;
       display: flex;
       flex-direction: column;
-      border-radius: 0;
     }
     .centered {
       flex: 1;
@@ -99,18 +98,21 @@
 </head>
 <body>
   <div class="container">
+    <!-- Lock screen -->
     <div id="lock-screen" class="centered">
       <h2>Enter Access Code</h2>
       <input type="password" id="code" placeholder="Access code" />
       <button onclick="checkCode()">Unlock</button>
     </div>
 
+    <!-- Username selection -->
     <div id="username-screen" class="centered" style="display:none;">
       <h2>Choose Username</h2>
       <input type="text" id="username" placeholder="Your username" />
       <button onclick="enterChat()">Enter Chat</button>
     </div>
 
+    <!-- Chat screen -->
     <div id="chat">
       <h2>Messaging</h2>
       <div id="messages"></div>
@@ -147,30 +149,65 @@
     let currentUser = "";
     let allMessages = [];
 
-   async function fetchMessages() {
-  const res = await fetch("/api/messages");
-  const data = await res.json();
-  allMessages = data;
-  renderMessages();
-}
+    function renderMessages() {
+      const messagesDiv = document.getElementById("messages");
+      messagesDiv.innerHTML = "";
+      allMessages.forEach(line => {
+        if (line.trim()) {
+          const msgDiv = document.createElement("div");
+          msgDiv.className = "msg";
+          if (line.startsWith(currentUser + ":")) {
+            msgDiv.classList.add("self");
+          }
+          msgDiv.textContent = line;
+          messagesDiv.appendChild(msgDiv);
+        }
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
 
-async function sendMessage() {
-  const msgInput = document.getElementById("message");
-  const msg = msgInput.value.trim();
-  if (!msg) return;
+    function enterChat() {
+      const user = document.getElementById("username").value.trim();
+      if (!user) {
+        alert("Please enter a username");
+        return;
+      }
+      currentUser = user;
+      document.getElementById("username-screen").style.display = "none";
+      document.getElementById("chat").style.display = "flex";
+      fetchMessages();
+    }
 
-  const entry = currentUser + ": " + msg;
+    async function fetchMessages() {
+      try {
+        const res = await fetch("/api/messages");
+        const data = await res.json();
+        allMessages = data;
+        renderMessages();
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+      }
+    }
 
-  await fetch("/api/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: entry })
-  });
+    async function sendMessage() {
+      const msgInput = document.getElementById("message");
+      const msg = msgInput.value.trim();
+      if (!msg) return;
 
-  msgInput.value = "";
-  fetchMessages(); // reload chat
-  }
-  setInterval(fetchMessages, 3000);
+      const entry = currentUser + ": " + msg;
+
+      await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: entry })
+      });
+
+      msgInput.value = "";
+      fetchMessages(); // reload chat
+    }
+
+    // Refresh chat every 3s
+    setInterval(fetchMessages, 3000);
   </script>
 </body>
 </html>
