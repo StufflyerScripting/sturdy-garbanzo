@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Messaging App</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1e1e2e;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #eee;
+    }
+    .container {
+      width: 100%;
+      height: 100%;
+      background: #2b2b3c;
+      display: flex;
+      flex-direction: column;
+      border-radius: 0;
+    }
+    .centered {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    h2 {
+      text-align: center;
+      margin: 10px 0;
+      color: #fff;
+    }
+    input, button {
+      padding: 10px;
+      margin: 6px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    input {
+      background: #3c3c4e;
+      color: #fff;
+      width: 220px;
+    }
+    input::placeholder {
+      color: #aaa;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      width: 240px;
+    }
+    button:hover {
+      background: #43a047;
+    }
+    #chat {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      padding: 10px;
+    }
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #444;
+      padding: 10px;
+      border-radius: 10px;
+      background: #1e1e2e;
+    }
+    .msg {
+      margin: 8px 0;
+      padding: 8px 12px;
+      background: #3c3c4e;
+      border-radius: 12px;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+    .msg.self {
+      background: #4CAF50;
+      margin-left: auto;
+      color: #fff;
+    }
+    .chat-controls {
+      display: flex;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    .chat-controls input {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="lock-screen" class="centered">
+      <h2>Enter Access Code</h2>
+      <input type="password" id="code" placeholder="Access code" />
+      <button onclick="checkCode()">Unlock</button>
+    </div>
+
+    <div id="username-screen" class="centered" style="display:none;">
+      <h2>Choose Username</h2>
+      <input type="text" id="username" placeholder="Your username" />
+      <button onclick="enterChat()">Enter Chat</button>
+    </div>
+
+    <div id="chat">
+      <h2>Messaging</h2>
+      <div id="messages"></div>
+      <div class="chat-controls">
+        <input type="text" id="message" placeholder="Type a message" />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // SHA-256 helper
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Pre-hash the correct access code (replace with your own!)
+    const correctHash = "e5c9af9ca13b9e9fff9cd82d8f8d07f75c45a83555540b24bdd40a59db29c685";
+
+    async function checkCode() {
+      const input = document.getElementById("code").value;
+      const hash = await sha256(input);
+      if (hash === correctHash) {
+        document.getElementById("lock-screen").style.display = "none";
+        document.getElementById("username-screen").style.display = "flex";
+      } else {
+        alert("Incorrect code!");
+      }
+    }
+
+    let currentUser = "";
+    let allMessages = [];
+
+    // Load messages from localStorage (simulate txt file)
+    window.onload = function() {
+      const saved = localStorage.getItem("chatLog");
+      if (saved) {
+        allMessages = saved.split("\n");
+      }
+    }
+
+    function renderMessages() {
+      const messagesDiv = document.getElementById("messages");
+      messagesDiv.innerHTML = "";
+      allMessages.forEach(line => {
+        if (line.trim()) {
+          const msgDiv = document.createElement("div");
+          msgDiv.className = "msg";
+          if (line.startsWith(currentUser + ":")) {
+            msgDiv.classList.add("self");
+          }
+          msgDiv.textContent = line;
+          messagesDiv.appendChild(msgDiv);
+        }
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function enterChat() {
+      const user = document.getElementById("username").value.trim();
+      if (!user) {
+        alert("Please enter a username");
+        return;
+      }
+      currentUser = user;
+      document.getElementById("username-screen").style.display = "none";
+      document.getElementById("chat").style.display = "flex";
+      renderMessages();
+    }
+
+    function sendMessage() {
+      const msgInput = document.getElementById("message");
+      const msg = msgInput.value.trim();
+      if (!msg) return;
+      const entry = currentUser + ": " + msg;
+      allMessages.push(entry);
+      localStorage.setItem("chatLog", allMessages.join("\n"));
+      renderMessages();
+      msgInput.value = "";
+    }
+  </script>
+</body>
+</html>
