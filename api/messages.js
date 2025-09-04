@@ -17,20 +17,26 @@ function decrypt(text) {
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
-    // Fetch all messages from KV (list from newest → oldest)
-    const encrypted = await kv.lrange("messages", 0, -1);
-    const decrypted = encrypted.map(decrypt).reverse(); // reverse for oldest → newest
+    const encrypted = (await kv.lrange("messages", 0, -1)) || [];
+    const decrypted = encrypted.map(decrypt).reverse();
     res.status(200).json(decrypted);
   } 
   
   else if (req.method === "POST") {
-    const { message } = req.body;
+    let body;
+    try {
+      body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    } catch {
+      res.status(400).json({ error: "Invalid JSON" });
+      return;
+    }
+
+    const { message } = body || {};
     if (!message) {
       res.status(400).json({ error: "Message required" });
       return;
     }
 
-    // Store encrypted message in KV
     await kv.lpush("messages", encrypt(message));
     res.status(200).json({ success: true });
   } 
