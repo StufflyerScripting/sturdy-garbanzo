@@ -6,5 +6,20 @@
     "dev": "vercel dev",
     "start": "vercel dev"
   },
-  "dependencies": {}
+  "description": "the original mavurnek system",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StufflyerScripting/sturdy-garbanzo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/StufflyerScripting/sturdy-garbanzo/issues"
+  },
+  "homepage": "https://github.com/StufflyerScripting/sturdy-garbanzo#readme",
+  "dependencies": {
+    "@vercel/kv": "^3.0.0"
+  }
 }
