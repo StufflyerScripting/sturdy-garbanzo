@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #1e1e2e;
+      background: linear-gradient(135deg, #1e1e2e, #2b2b3c);
       margin: 0;
       height: 100vh;
       display: flex;
@@ -18,7 +18,7 @@
     .container {
       width: 100%;
       height: 100%;
-      background: #2b2b3c;
+      background: rgba(20, 20, 30, 0.9);
       display: flex;
       flex-direction: column;
     }
@@ -35,29 +35,35 @@
       color: #fff;
     }
     input, button {
-      padding: 10px;
-      margin: 6px 0;
+      padding: 12px;
+      margin: 8px 0;
       border: none;
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 10px;
+      font-size: 15px;
     }
     input {
-      background: #3c3c4e;
+      background: #2f2f45;
       color: #fff;
-      width: 220px;
+      width: 240px;
+      transition: background 0.2s;
+    }
+    input:focus {
+      outline: none;
+      background: #3d3d55;
     }
     input::placeholder {
       color: #aaa;
     }
     button {
-      background: #4CAF50;
+      background: linear-gradient(135deg, #43a047, #66bb6a);
       color: white;
       cursor: pointer;
       font-weight: bold;
       width: 240px;
+      transition: opacity 0.2s;
     }
     button:hover {
-      background: #43a047;
+      opacity: 0.9;
     }
     #chat {
       display: none;
@@ -70,21 +76,31 @@
       overflow-y: auto;
       border: 1px solid #444;
       padding: 10px;
-      border-radius: 10px;
-      background: #1e1e2e;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #1e1e2e, #252537);
+      display: flex;
+      flex-direction: column;
     }
     .msg {
       margin: 8px 0;
-      padding: 8px 12px;
-      background: #3c3c4e;
-      border-radius: 12px;
-      max-width: 80%;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #3c3c4e, #45455a);
+      border-radius: 14px;
+      max-width: 75%;
       word-wrap: break-word;
+      position: relative;
+      font-size: 14px;
     }
     .msg.self {
-      background: #4CAF50;
+      background: linear-gradient(135deg, #4CAF50, #66bb6a);
       margin-left: auto;
       color: #fff;
+    }
+    .timestamp {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 4px;
+      text-align: right;
     }
     .chat-controls {
       display: flex;
@@ -152,17 +168,25 @@
     function renderMessages() {
       const messagesDiv = document.getElementById("messages");
       messagesDiv.innerHTML = "";
-      allMessages.forEach(line => {
-        if (line.trim()) {
+      allMessages.forEach(entry => {
+        if (entry.message && entry.message.trim()) {
           const msgDiv = document.createElement("div");
           msgDiv.className = "msg";
-          if (line.startsWith(currentUser + ":")) {
+          if (entry.message.startsWith(currentUser + ":")) {
             msgDiv.classList.add("self");
           }
-          msgDiv.textContent = line;
+          msgDiv.textContent = entry.message;
+
+          // timestamp
+          const ts = document.createElement("div");
+          ts.className = "timestamp";
+          ts.textContent = new Date(entry.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          msgDiv.appendChild(ts);
+
           messagesDiv.appendChild(msgDiv);
         }
       });
+      // scroll to bottom
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
@@ -194,12 +218,15 @@
       const msg = msgInput.value.trim();
       if (!msg) return;
 
-      const entry = currentUser + ": " + msg;
+      const entry = {
+        message: currentUser + ": " + msg,
+        timestamp: Date.now()
+      };
 
       await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: entry })
+        body: JSON.stringify(entry)
       });
 
       msgInput.value = "";
@@ -208,6 +235,14 @@
 
     // Refresh chat every 3s
     setInterval(fetchMessages, 3000);
+
+    // Mobile return key = send
+    document.getElementById("message").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
   </script>
 </body>
 </html>
