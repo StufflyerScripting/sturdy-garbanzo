@@ -1,6 +1,6 @@
 import { kv } from "@vercel/kv";
 
-// Simple Caesar cipher (+1 / -1)
+// Caesar cipher (+1 / -1)
 function encrypt(text) {
   return text.replace(/[a-zA-Z]/g, c => {
     let base = c >= "a" && c <= "z" ? 97 : 65;
@@ -19,11 +19,17 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const raw = (await kv.lrange("messages", 0, -1)) || [];
 
-    // Each entry is encrypted JSON → decrypt then parse
     const messages = raw.map(item => {
       try {
         const decrypted = decrypt(item);
-        return JSON.parse(decrypted);
+
+        // Try parse JSON → if fails, treat as plain text
+        try {
+          const parsed = JSON.parse(decrypted);
+          if (parsed && parsed.text) return parsed;
+        } catch {
+          return { text: decrypted, reactions: [] };
+        }
       } catch {
         return null;
       }
@@ -43,7 +49,7 @@ export default async function handler(req, res) {
 
     const { message, reaction, index } = body || {};
 
-    // --- Add a new message ---
+    // --- New message ---
     if (message) {
       const newMsg = { text: message, reactions: [] };
       await kv.lpush("messages", encrypt(JSON.stringify(newMsg)));
@@ -51,7 +57,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    // --- Add a reaction ---
+    // --- Reaction to a message ---
     if (typeof index === "number" && reaction) {
       const raw = await kv.lindex("messages", index);
       if (!raw) {
@@ -61,10 +67,11 @@ export default async function handler(req, res) {
 
       let msg;
       try {
-        msg = JSON.parse(decrypt(raw));
+        const decrypted = decrypt(raw);
+        msg = JSON.parse(decrypted);
       } catch {
-        res.status(500).json({ error: "Corrupted message" });
-        return;
+        // Old plain text message → upgrade it
+        msg = { text: decrypt(raw), reactions: [] };
       }
 
       msg.reactions.push(reaction);
