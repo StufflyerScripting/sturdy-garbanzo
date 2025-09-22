@@ -239,6 +239,39 @@
       }
     }
 
+    function renderMessages() {
+  const messagesDiv = document.getElementById("messages");
+  messagesDiv.innerHTML = "";
+  allMessages.forEach((line, index) => {
+    if (line.trim()) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "msg";
+      if (line.startsWith(currentUser + ":")) {
+        msgDiv.classList.add("self");
+      }
+
+      // Detect links (simple regex)
+      const linkRegex = /(https?:\/\/[^\s]+)/g;
+      const html = line.replace(linkRegex, '<a href="$1" target="_blank">$1</a>');
+      msgDiv.innerHTML = html; // use innerHTML now
+
+      // Add reactions container
+      const reactionsDiv = document.createElement("div");
+      reactionsDiv.className = "reactions";
+      reactionsDiv.innerHTML = `
+        <span class="reaction" onclick="addReaction(${index}, '👍')">👍</span>
+        <span class="reaction" onclick="addReaction(${index}, '❤️')">❤️</span>
+        <span class="reaction" onclick="addReaction(${index}, '😂')">😂</span>
+      `;
+      msgDiv.appendChild(reactionsDiv);
+
+      messagesDiv.appendChild(msgDiv);
+    }
+  });
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+
     async function sendMessage() {
       const msgInput = document.getElementById("message");
       const msg = msgInput.value.trim();
