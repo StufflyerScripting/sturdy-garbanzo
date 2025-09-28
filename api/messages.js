@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       const encrypted = (await kv.lrange("messages", 0, -1)) || [];
       const decrypted = encrypted.map(decrypt).reverse();
       return res.status(200).json(decrypted);
-    }
+    } 
     else if (req.method === "POST") {
       let body;
       try {
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
 
       await kv.lpush("messages", encrypt(message));
       return res.status(200).json({ success: true });
-    }
+    } 
     else {
       return res.status(405).json({ error: "Method not allowed" });
     }
@@ -46,3 +46,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 }
+
