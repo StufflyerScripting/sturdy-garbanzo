@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mavurnek</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #2a003f, #12001a);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #eee;
+    }
+
+    .container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .centered {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 12px 0 20px 0;
+      color: #fff;
+      font-size: 22px;
+      letter-spacing: 1px;
+    }
+
+    input, button {
+      padding: 12px;
+      margin: 6px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    input {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      width: 240px;
+      backdrop-filter: blur(6px);
+    }
+
+    input::placeholder {
+      color: #bbb;
+    }
+
+    input:focus {
+      border: 1px solid #9d4edd;
+      box-shadow: 0 0 6px #9d4edd;
+    }
+
+    button {
+      background: linear-gradient(135deg, #9d4edd, #7b2cbf);
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      width: 260px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }
+
+    #chat {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      padding: 20px;
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      box-shadow: inset 0 0 12px rgba(0,0,0,0.3);
+    }
+
+    .msg {
+      margin: 10px 0;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #3c0d5a, #2a003f);
+      border-radius: 16px;
+      max-width: 80%;
+      word-wrap: break-word;
+      color: #eee;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .msg.self {
+      background: linear-gradient(135deg, #9d4edd, #7b2cbf);
+      margin-left: auto;
+      color: #fff;
+    }
+
+    .chat-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .chat-controls input {
+      flex: 1;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Scrollbar styling */
+    #messages::-webkit-scrollbar {
+      width: 8px;
+    }
+    #messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #messages::-webkit-scrollbar-thumb {
+      background: #7b2cbf;
+      border-radius: 10px;
+    }
+    #messages::-webkit-scrollbar-thumb:hover {
+      background: #9d4edd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Lock screen -->
+    <div id="lock-screen" class="centered">
+      <h2>🔒 Enter Access Code</h2>
+      <input type="password" id="code" placeholder="Access code" />
+      <button onclick="checkCode()">Unlock</button>
+    </div>
+
+    <!-- Username selection -->
+    <div id="username-screen" class="centered" style="display:none;">
+      <h2>👤 Choose Username</h2>
+      <input type="text" id="username" placeholder="Your username" />
+      <button onclick="enterChat()">Enter Chat</button>
+    </div>
+
+    <!-- Chat screen -->
+    <div id="chat">
+      <h2>💬 Messaging</h2>
+      <div id="messages"></div>
+      <div class="chat-controls">
+        <input type="text" id="message" placeholder="Type a message..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // SHA-256 helper
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Pre-hash the correct access code (replace with your own!)
+    const correctHash = "e5c9af9ca13b9e9fff9cd82d8f8d07f75c45a83555540b24bdd40a59db29c685";
+
+    async function checkCode() {
+      const input = document.getElementById("code").value;
+      const hash = await sha256(input);
+      if (hash === correctHash) {
+        document.getElementById("lock-screen").style.display = "none";
+        document.getElementById("username-screen").style.display = "flex";
+      } else {
+        alert("Incorrect code!");
+      }
+    }
+
+    let currentUser = "";
+    let allMessages = [];
+
+    function renderMessages() {
+      const messagesDiv = document.getElementById("messages");
+      messagesDiv.innerHTML = "";
+      allMessages.forEach(line => {
+        if (line.trim()) {
+          const msgDiv = document.createElement("div");
+          msgDiv.className = "msg";
+          if (line.startsWith(currentUser + ":")) {
+            msgDiv.classList.add("self");
+          }
+          msgDiv.textContent = line;
+          messagesDiv.appendChild(msgDiv);
+        }
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function enterChat() {
+      const user = document.getElementById("username").value.trim();
+      if (!user) {
+        alert("Please enter a username");
+        return;
+      }
+      currentUser = user;
+      document.getElementById("username-screen").style.display = "none";
+      document.getElementById("chat").style.display = "flex";
+      fetchMessages();
+    }
+
+    async function fetchMessages() {
+      try {
+        const res = await fetch("/api/messages");
+        const data = await res.json();
+        allMessages = data;
+        renderMessages();
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+      }
+    }
+
+    async function sendMessage() {
+      const msgInput = document.getElementById("message");
+      const msg = msgInput.value.trim();
+      if (!msg) return;
+
+      const entry = currentUser + ": " + msg;
+
+      await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: entry })
+      });
+
+      msgInput.value = "";
+      fetchMessages(); // reload chat
+    }
+
+    // Refresh chat every 3s
+    setInterval(fetchMessages, 3000);
+  </script>
+</body>
+</html>
