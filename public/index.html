@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #2a003f, #12001a);
+      background: #12001a;
       margin: 0;
       height: 100vh;
       display: flex;
@@ -124,12 +124,6 @@
     .chat-controls input {
       flex: 1;
     }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
     /* Scrollbar styling */
     #messages::-webkit-scrollbar {
       width: 8px;
@@ -150,9 +144,9 @@
   <div class="container">
     <!-- Lock screen -->
     <div id="lock-screen" class="centered">
-      <h2>🔒 Enter Access Code</h2>
-      <input type="password" id="code" placeholder="Access code" />
-      <button onclick="checkCode()">Unlock</button>
+      <h2>Enter a word.</h2>
+      <input type="password" id="code" placeholder="Word..." />
+      <button onclick="checkCode()">Check Word</button>
     </div>
 
     <!-- Username selection -->
@@ -191,7 +185,7 @@
       document.getElementById("lock-screen").style.display = "none";
       document.getElementById("username-screen").style.display = "flex";
     } else {
-      alert("Incorrect code!");
+      alert("Error while fetching data!");
     }
   }
 
