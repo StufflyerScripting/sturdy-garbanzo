@@ -59,7 +59,7 @@ export default async function handler(req, res) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: `💬 New message: **${message}**`
+            content: `${message}`
           }),
         });
       }
