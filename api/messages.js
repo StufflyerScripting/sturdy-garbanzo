@@ -17,12 +17,14 @@ function decrypt(text) {
   });
 }
 
+// Add your webhook URL here (better: store it in an env variable)
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const encrypted = (await kv.lrange("messages", 0, -1)) || [];
 
-      // Ensure every item is decrypted safely
       const decrypted = encrypted
         .map(item => {
           try {
@@ -51,6 +53,17 @@ export default async function handler(req, res) {
       }
 
       await kv.lpush("messages", encrypt(message));
+
+      if (DISCORD_WEBHOOK_URL) {
+        await fetch(DISCORD_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: `💬 New message: **${message}**`
+          }),
+        });
+      }
+
       return res.status(200).json({ success: true });
     }
 
