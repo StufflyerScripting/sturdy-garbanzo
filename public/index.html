@@ -140,172 +140,116 @@
     }
   </style>
 </head>
+</head>
 <body>
   <div class="container">
-    <!-- Lock screen -->
-    <div id="lock-screen" class="centered">
-      <h2>Enter a word.</h2>
-      <input type="password" id="code" placeholder="Word..." />
-      <button onclick="checkCode()">Get word data.</button>
+    <div id="login-screen">
+      <h2>Login</h2>
+      <input id="username" placeholder="username" />
+      <input id="extra" placeholder="extra code (if required)" />
+      <button id="loginBtn">Log in</button>
+      <div id="loginError" style="color:#f88"></div>
     </div>
 
-    <!-- Username selection -->
-    <div id="username-screen" class="centered" style="display:none;">
-      <h2>👤 Choose Username</h2>
-      <input type="text" id="username" placeholder="Your username" />
-      <button onclick="enterChat()">Enter Chat</button>
-    </div>
-
-    <!-- Chat screen -->
-    <div id="chat">
-      <h2>💬 Messaging</h2>
-      <div id="messages"></div>
-      <div class="chat-controls">
-        <input type="text" id="message" placeholder="Type a message..." />
-        <button onclick="sendMessage()">Send</button>
+    <div id="chat-screen" style="display:none;">
+      <h2>Messaging</h2>
+      <div id="messages" style="height:50vh; overflow:auto; background:rgba(255,255,255,0.04); padding:12px; border-radius:10px;"></div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <input id="message" placeholder="Type..." style="flex:1" />
+        <button id="sendBtn">Send</button>
       </div>
     </div>
   </div>
-  <script>
-// SHA-256 helper
-async function sha256(message) {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+<script>
+// minimal sanitizer for DOM insertion
+function sanitize(str) {
+  return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* ------------------------------
-   🔐 HASHES (à remplacer)
---------------------------------*/
-const correctHash = "4bfcf30dce1c031d6577fc579b9736833f847603e5d313b200b458a7e0f92954";
+async function login() {
+  const username = document.getElementById("username").value.trim();
+  const extra = document.getElementById("extra").value.trim();
+  if (!username) { showLoginError("Enter username"); return; }
 
-// USERNAMES autorisés (hashés)
-const hashUserX = "c16b0e1dc4fde45a6d70be9c578741ab37f63e71041665e3379efde76d55902f"; // <--- hash username X
-const hashUserY = "47dd51c046721c58b7bcbdecb3a8ac1e0be029e5328982d590309aaebcff16d6"; // <--- hash username Y
-
-// EXTRA CODES (pour X et Y)
-const hashExtraCodeForX = "b290a91ee1239e99705fb55a538f2320dc6ef8b27761ba1e261d75319e7d5d4e";
-const hashExtraCodeForY = "91e6602efc58f04d864f195b893c7e76497d71e4b80830f9eab5364ffa43e0cd";
-
-/* ------------------------------
-   🔐 PREMIÈRE VÉRIFICATION DU MOT
---------------------------------*/
-async function checkCode() {
-  const input = document.getElementById("code").value;
-  const hash = await sha256(input);
-  if (hash === correctHash) {
-    document.getElementById("lock-screen").style.display = "none";
-    document.getElementById("username-screen").style.display = "flex";
-  } else {
-    alert("Error while fetching data!");
+  try {
+    const res = await fetch("/api/auth", {
+      method: "POST",
+      credentials: "include", // important: allow server-set HttpOnly cookie to be used
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, extraCode: extra })
+    });
+    const data = await res.json();
+    if (!res.ok) { showLoginError(data.error || "Login failed"); return; }
+    enterChat();
+  } catch (err) {
+    showLoginError("Network error");
+    console.error(err);
   }
 }
 
-let currentUser = "";
-let allMessages = [];
+function showLoginError(msg) {
+  document.getElementById("loginError").textContent = msg;
+}
 
-/* ------------------------------
-   🔐 CHECK DU USERNAME + EXTRA CODE
---------------------------------*/
 async function enterChat() {
-  const user = document.getElementById("username").value.trim();
-  if (!user) {
-    alert("Please enter a username");
-    return;
-  }
-
-  const userHash = await sha256(user);
-
-  // ❌ utilisateur non autorisé
-  if (userHash !== hashUserX && userHash !== hashUserY) {
-    alert("Access denied.");
-    return;
-  }
-
-  // 🔒 demande code supplémentaire si User X
-  if (userHash === hashUserX) {
-    const extra = prompt("Enter extra code for User X:");
-    if (!extra) { alert("Access denied."); return; }
-
-    const extraHash = await sha256(extra);
-    if (extraHash !== hashExtraCodeForX) {
-      alert("Wrong extra code.");
-      return;
-    }
-  }
-
-  // 🔒 demande code supplémentaire si User Y
-  if (userHash === hashUserY) {
-    const extra = prompt("Enter extra code for User Y:");
-    if (!extra) { alert("Access denied."); return; }
-
-    const extraHash = await sha256(extra);
-    if (extraHash !== hashExtraCodeForY) {
-      alert("Wrong extra code.");
-      return;
-    }
-  }
-
-  // 🎉 OK → accès au chat
-  currentUser = user;
-  document.getElementById("username-screen").style.display = "none";
-  document.getElementById("chat").style.display = "flex";
-  fetchMessages();
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("chat-screen").style.display = "block";
+  await fetchMessages();
 }
 
-/* ------------------------------
-   CHAT SYSTEM (inchangé)
---------------------------------*/
-function renderMessages() {
-  const messagesDiv = document.getElementById("messages");
-  messagesDiv.innerHTML = "";
-  allMessages.forEach(line => {
-    if (line.trim()) {
-      const msgDiv = document.createElement("div");
-      msgDiv.className = "msg";
-      if (line.startsWith(currentUser + ":")) {
-        msgDiv.classList.add("self");
-      }
-      msgDiv.textContent = line;
-      messagesDiv.appendChild(msgDiv);
-    }
+// render messages
+function renderMessages(messages) {
+  const container = document.getElementById("messages");
+  container.innerHTML = "";
+  messages.forEach(m => {
+    const d = document.createElement("div");
+    d.className = "msg";
+    // simple self detection (server prepended username)
+    // don't assume username is available client-side; just mark lines that start with entered username
+    const username = document.getElementById("username")?.value || "";
+    if (m.startsWith(username + ":")) d.classList.add("self");
+    d.innerHTML = sanitize(m);
+    container.appendChild(d);
   });
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  container.scrollTop = container.scrollHeight;
 }
 
 async function fetchMessages() {
   try {
-    const res = await fetch("/api/messages");
-    if (!res.ok) throw new Error("Server error: " + res.status);
-
+    const res = await fetch("/api/messages", { credentials: "include" });
+    if (!res.ok) { console.error("Failed to fetch messages", res.status); return; }
     const data = await res.json();
-    if (!Array.isArray(data)) throw new Error("API did not return an array");
-
-    allMessages = data;
-    renderMessages();
+    if (!Array.isArray(data)) return;
+    renderMessages(data);
   } catch (err) {
-    console.error("Failed to fetch messages:", err);
+    console.error("fetchMessages error", err);
   }
 }
 
 async function sendMessage() {
-  const msgInput = document.getElementById("message");
-  const msg = msgInput.value.trim();
-  if (!msg) return;
-
-  const entry = currentUser + ": " + msg;
-
-  await fetch("/api/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: entry })
-  });
-
-  msgInput.value = "";
-  fetchMessages();
+  const msgEl = document.getElementById("message");
+  const text = msgEl.value.trim();
+  if (!text) return;
+  try {
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
+    });
+    if (!res.ok) {
+      console.error("send failed", await res.text());
+    }
+    msgEl.value = "";
+    await fetchMessages();
+  } catch (err) {
+    console.error("send error", err);
+  }
 }
 
+document.getElementById("loginBtn").addEventListener("click", login);
+document.getElementById("sendBtn").addEventListener("click", sendMessage);
 setInterval(fetchMessages, 3000);
 </script>
 </body>
