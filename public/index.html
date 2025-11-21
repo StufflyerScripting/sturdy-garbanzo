@@ -166,100 +166,147 @@
       </div>
     </div>
   </div>
-
   <script>
-  // SHA-256 helper
-  async function sha256(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+// SHA-256 helper
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* ------------------------------
+   🔐 HASHES (à remplacer)
+--------------------------------*/
+const correctHash = "4bfcf30dce1c031d6577fc579b9736833f847603e5d313b200b458a7e0f92954";
+
+// USERNAMES autorisés (hashés)
+const hashUserX = "c16b0e1dc4fde45a6d70be9c578741ab37f63e71041665e3379efde76d55902f"; // <--- hash username X
+const hashUserY = "244e0f6a2c06c944ab9b0c6ec47032ac0d47b85e5d67522b89ade38f4e3a39e3"; // <--- hash username Y
+
+// EXTRA CODES (pour X et Y)
+const hashExtraCodeForX = "b290a91ee1239e99705fb55a538f2320dc6ef8b27761ba1e261d75319e7d5d4e";
+const hashExtraCodeForY = "91e6602efc58f04d864f195b893c7e76497d71e4b80830f9eab5364ffa43e0cd";
+
+/* ------------------------------
+   🔐 PREMIÈRE VÉRIFICATION DU MOT
+--------------------------------*/
+async function checkCode() {
+  const input = document.getElementById("code").value;
+  const hash = await sha256(input);
+  if (hash === correctHash) {
+    document.getElementById("lock-screen").style.display = "none";
+    document.getElementById("username-screen").style.display = "flex";
+  } else {
+    alert("Error while fetching data!");
+  }
+}
+
+let currentUser = "";
+let allMessages = [];
+
+/* ------------------------------
+   🔐 CHECK DU USERNAME + EXTRA CODE
+--------------------------------*/
+async function enterChat() {
+  const user = document.getElementById("username").value.trim();
+  if (!user) {
+    alert("Please enter a username");
+    return;
   }
 
-  const correctHash = "4bfcf30dce1c031d6577fc579b9736833f847603e5d313b200b458a7e0f92954";
+  const userHash = await sha256(user);
 
-  async function checkCode() {
-    const input = document.getElementById("code").value;
-    const hash = await sha256(input);
-    if (hash === correctHash) {
-      document.getElementById("lock-screen").style.display = "none";
-      document.getElementById("username-screen").style.display = "flex";
-    } else {
-      alert("Error while fetching data!");
-    }
+  // ❌ utilisateur non autorisé
+  if (userHash !== hashUserX && userHash !== hashUserY) {
+    alert("Access denied.");
+    return;
   }
 
-  let currentUser = "";
-  let allMessages = [];
+  // 🔒 demande code supplémentaire si User X
+  if (userHash === hashUserX) {
+    const extra = prompt("Enter extra code for User X:");
+    if (!extra) { alert("Access denied."); return; }
 
-  function renderMessages() {
-    const messagesDiv = document.getElementById("messages");
-    messagesDiv.innerHTML = "";
-    allMessages.forEach(line => {
-      if (line.trim()) {
-        const msgDiv = document.createElement("div");
-        msgDiv.className = "msg";
-        if (line.startsWith(currentUser + ":")) {
-          msgDiv.classList.add("self");
-        }
-        msgDiv.textContent = line;
-        messagesDiv.appendChild(msgDiv);
-      }
-    });
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-  }
-
-  function enterChat() {
-    const user = document.getElementById("username").value.trim();
-    if (!user) {
-      alert("Please enter a username");
+    const extraHash = await sha256(extra);
+    if (extraHash !== hashExtraCodeForX) {
+      alert("Wrong extra code.");
       return;
     }
-    currentUser = user;
-    document.getElementById("username-screen").style.display = "none";
-    document.getElementById("chat").style.display = "flex";
-    fetchMessages();
   }
 
-  async function fetchMessages() {
-    try {
-      const res = await fetch("/api/messages");
-      if (!res.ok) {
-        throw new Error("Server error: " + res.status);
-      }
-      const data = await res.json();
+  // 🔒 demande code supplémentaire si User Y
+  if (userHash === hashUserY) {
+    const extra = prompt("Enter extra code for User Y:");
+    if (!extra) { alert("Access denied."); return; }
 
-      if (!Array.isArray(data)) {
-        throw new Error("API did not return an array");
-      }
-
-      allMessages = data;   // 🔹 on met à jour la variable globale
-      renderMessages();
-    } catch (err) {
-      console.error("Failed to fetch messages:", err);
+    const extraHash = await sha256(extra);
+    if (extraHash !== hashExtraCodeForY) {
+      alert("Wrong extra code.");
+      return;
     }
   }
 
-  async function sendMessage() {
-    const msgInput = document.getElementById("message");
-    const msg = msgInput.value.trim();
-    if (!msg) return;
+  // 🎉 OK → accès au chat
+  currentUser = user;
+  document.getElementById("username-screen").style.display = "none";
+  document.getElementById("chat").style.display = "flex";
+  fetchMessages();
+}
 
-    const entry = currentUser + ": " + msg;
+/* ------------------------------
+   CHAT SYSTEM (inchangé)
+--------------------------------*/
+function renderMessages() {
+  const messagesDiv = document.getElementById("messages");
+  messagesDiv.innerHTML = "";
+  allMessages.forEach(line => {
+    if (line.trim()) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "msg";
+      if (line.startsWith(currentUser + ":")) {
+        msgDiv.classList.add("self");
+      }
+      msgDiv.textContent = line;
+      messagesDiv.appendChild(msgDiv);
+    }
+  });
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 
-    await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: entry })
-    });
+async function fetchMessages() {
+  try {
+    const res = await fetch("/api/messages");
+    if (!res.ok) throw new Error("Server error: " + res.status);
 
-    msgInput.value = "";
-    fetchMessages(); // reload chat
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("API did not return an array");
+
+    allMessages = data;
+    renderMessages();
+  } catch (err) {
+    console.error("Failed to fetch messages:", err);
   }
+}
 
-  // Refresh chat every 3s
-  setInterval(fetchMessages, 3000);
+async function sendMessage() {
+  const msgInput = document.getElementById("message");
+  const msg = msgInput.value.trim();
+  if (!msg) return;
+
+  const entry = currentUser + ": " + msg;
+
+  await fetch("/api/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: entry })
+  });
+
+  msgInput.value = "";
+  fetchMessages();
+}
+
+setInterval(fetchMessages, 3000);
 </script>
-
 </body>
 </html>
