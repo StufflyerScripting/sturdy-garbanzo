@@ -1,6 +1,6 @@
 // /pages/api/messages.js
 import { kv } from "@vercel/kv";
-import { encrypt, decrypt } from "../../utils/crypto";
+import { encrypt, decrypt } from "../utils/crypto";
 import fetch from "node-fetch"; // in Node 18+ fetch exists; keep for clarity
 
 const MESSAGES_LIST = "messages"; // list key in KV
