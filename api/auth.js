@@ -1,6 +1,6 @@
 // /pages/api/auth.js
 import { kv } from "@vercel/kv";
-import { sha256Hex, randomToken } from "../../lib/crypto";
+import { sha256Hex, randomToken } from "../../utils/crypto";
 
 const SESSION_TTL = 60 * 60; // 1 hour
 
