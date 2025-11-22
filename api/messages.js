@@ -1,87 +1,94 @@
-// /pages/api/messages.js
+// /api/messages.js — Vercel Serverless Function
 import { kv } from "@vercel/kv";
-import { encrypt, decrypt } from "../utils/crypto";
+import { encrypt, decrypt } from "../utils/crypto"; // your encryption module
 
-const MESSAGES_LIST = "messages"; // list key in KV
-const RATE_LIMIT_TTL = 5; // seconds
-const RATE_LIMIT_MAX = 10; // max requests per IP per TTL
+const LIST = "messages";
+const RATE_LIMIT_TTL = 5;         // seconds
+const RATE_LIMIT_MAX = 10;        // max requests per IP per TTL
+const SESSION_PREFIX = "session:";
 
-async function getSessionUsername(req) {
-  // Prefer cookie session
+// Get username from session cookie
+async function getSessionUser(req) {
   const cookie = req.headers.cookie || "";
-  const match = cookie.match(/(^|;\s*)session=([0-9a-f]+)/);
-  const token = match ? match[2] : null;
-  if (!token) return null;
-  return await kv.get(`session:${token}`);
+  const match = cookie.match(/(^|;\s*)session=([0-9a-fA-F]+)/);
+  if (!match) return null;
+
+  const token = match[2];
+  const username = await kv.get(SESSION_PREFIX + token);
+  return username || null;
 }
 
-function sanitizeForDisplay(str) {
-  // Very small sanitizer for JSON payload; server ensures stored text is raw.
+// Very small sanitizer for webhook text
+function sanitize(str) {
   return String(str).replace(/[&<>'"]/g, c => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    "'": '&#39;',
-    '"': '&quot;'
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
   }[c]));
 }
 
 export default async function handler(req, res) {
   try {
-    const username = await getSessionUsername(req);
+    // --- Auth required ---
+    const username = await getSessionUser(req);
     if (!username) return res.status(401).json({ error: "Not authenticated" });
 
+    // --- Rate limiting ---
     const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
-
-    // Simple rate limiting by IP
     const count = await kv.incr(`rate:${ip}`);
     if (count === 1) await kv.expire(`rate:${ip}`, RATE_LIMIT_TTL);
-    if (count > RATE_LIMIT_MAX) return res.status(429).json({ error: "Too many requests" });
+    if (count > RATE_LIMIT_MAX)
+      return res.status(429).json({ error: "Too many requests" });
 
+    // --- GET MESSAGES ---
     if (req.method === "GET") {
-      const encrypted = (await kv.lrange(MESSAGES_LIST, 0, -1)) || [];
-      // decrypt safely, ignore broken entries
-      const decrypted = encrypted
-        .map(e => {
-          try { return decrypt(e); } catch { return "[invalid message]"; }
-        })
-        .reverse(); // show newest last
-      return res.status(200).json(decrypted);
-    } else if (req.method === "POST") {
-      const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+      const encrypted = await kv.lrange(LIST, 0, -1) || [];
+
+      const messages = encrypted.map(msg => {
+        try { return decrypt(msg); }
+        catch { return "[invalid message]"; }
+      }).reverse();
+
+      return res.status(200).json(messages);
+    }
+
+    // --- POST MESSAGE ---
+    if (req.method === "POST") {
+      const body = typeof req.body === "string"
+        ? JSON.parse(req.body)
+        : req.body || {};
+
       let { message } = body;
-      if (!message || typeof message !== "string") return res.status(400).json({ error: "Message required" });
+      if (!message || typeof message !== "string")
+        return res.status(400).json({ error: "Message required" });
 
-      // Prepend username server-side to avoid spoofing
       const entry = `${username}: ${message}`;
+      await kv.lpush(LIST, encrypt(entry));
+      await kv.ltrim(LIST, 0, 199); // keep last 200 messages
 
-      // Store encrypted
-      const encrypted = encrypt(entry);
-      await kv.lpush(MESSAGES_LIST, encrypted);
-
-      // Keep messages list to reasonable size (trim)
-      await kv.ltrim(MESSAGES_LIST, 0, 199); // keep last 200 messages
-
-      // Send optional Discord webhook
-      const webhook = process.env.DISCORD_WEBHOOK_URL;
-      if (webhook) {
-        try {
+      // Discord webhook
+      try {
+        const webhook = process.env.DISCORD_WEBHOOK_URL;
+        if (webhook) {
           await fetch(webhook, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: `💬 ${sanitizeForDisplay(entry)}` })
+            body: JSON.stringify({ content: `${sanitize(entry)}` })
           });
-        } catch (err) {
-          console.warn("Discord webhook failed", err);
         }
+      } catch (err) {
+        console.warn("Webhook error:", err);
       }
 
       return res.status(200).json({ ok: true });
-    } else {
-      return res.status(405).end();
     }
-  } catch (err) {
-    console.error("messages error", err);
-    return res.status(500).json({ error: "server error" });
+
+    return res.status(405).end();
+  }
+  catch (err) {
+    console.error("messages API error:", err);
+    return res.status(500).json({ error: "Server error" });
   }
 }
