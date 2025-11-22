@@ -1,6 +1,6 @@
 // /api/messages.js — Vercel Serverless Function
 import { kv } from "@vercel/kv";
-import { encrypt, decrypt } from "../../utils/crypto"; // your encryption module
+import { encrypt, decrypt } from "../utils/crypto"; // your encryption module
 
 const LIST = "messages";
 const RATE_LIMIT_TTL = 5;         // seconds
