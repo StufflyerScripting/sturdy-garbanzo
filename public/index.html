@@ -170,23 +170,32 @@ function sanitize(str) {
 async function login() {
   const username = document.getElementById("username").value.trim();
   const extra = document.getElementById("extra").value.trim();
-  if (!username) { showLoginError("Enter username"); return; }
+  if (!username) return showLoginError("Enter username");
 
   try {
     const res = await fetch("/api/auth", {
       method: "POST",
-      credentials: "include", // important: allow server-set HttpOnly cookie to be used
+      credentials: "include", 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, extraCode: extra })
     });
+
     const data = await res.json();
-    if (!res.ok) { showLoginError(data.error || "Login failed"); return; }
+    if (!res.ok) {
+      showLoginError(data.error || "Login failed");
+      return;
+    }
+
+    // save username only for coloring messages (not authentication)
+    localStorage.setItem("username", username);
+
     enterChat();
   } catch (err) {
-    showLoginError("Network error");
     console.error(err);
+    showLoginError("Network error");
   }
 }
+
 
 function showLoginError(msg) {
   document.getElementById("loginError").textContent = msg;
