@@ -226,7 +226,7 @@ function renderMessages(messages) {
 
 async function fetchMessages() {
   try {
-    const res = await fetch("/api/messages.js", { credentials: "include" });
+    const res = await fetch("../api/messages.js", { credentials: "include" });
     if (!res.ok) { console.error("Failed to fetch messages", res.status); return; }
     const data = await res.json();
     if (!Array.isArray(data)) return;
@@ -241,7 +241,7 @@ async function sendMessage() {
   const text = msgEl.value.trim();
   if (!text) return;
   try {
-    const res = await fetch("/api/messages.js", {
+    const res = await fetch("../api/messages.js", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
