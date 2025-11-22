@@ -6,8 +6,8 @@ const SESSION_TTL = 60 * 60 * 24; // 1 day
 
 // Hardcoded allowed users — replace with KV or DB if needed
 const USERS = {
-  leonard: "1234",
-  admin: "secretcode"
+  stufflyer: process.env.ME,
+  Stufflyersgirl: process.env.SANNE
 };
 
 export default async function handler(req, res) {
