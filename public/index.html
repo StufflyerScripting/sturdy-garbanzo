@@ -216,7 +216,7 @@ function renderMessages(messages) {
     d.className = "msg";
     // simple self detection (server prepended username)
     // don't assume username is available client-side; just mark lines that start with entered username
-    const username = document.getElementById("username")?.value || "";
+    const username = localStorage.getItem("username") || "";
     if (m.startsWith(username + ":")) d.classList.add("self");
     d.innerHTML = sanitize(m);
     container.appendChild(d);
