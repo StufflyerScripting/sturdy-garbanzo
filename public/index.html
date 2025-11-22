@@ -173,7 +173,7 @@ async function login() {
   if (!username) return showLoginError("Enter username");
 
   try {
-    const res = await fetch("../api/auth.js", {
+    const res = await fetch("/api/auth.js", {
       method: "POST",
       credentials: "include", 
       headers: { "Content-Type": "application/json" },
